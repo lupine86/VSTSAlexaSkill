@@ -1,0 +1,49 @@
+{
+    "interactionModel": {
+        "languageModel": {
+            "invocationName": "v. s. t. s.",
+            "intents": [
+                {
+                    "name": "AMAZON.FallbackIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.CancelIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.HelpIntent",
+                    "samples": []
+                },
+                {
+                    "name": "AMAZON.StopIntent",
+                    "samples": []
+                },
+                {
+                    "name": "Account",
+                    "slots": [],
+                    "samples": [
+                        "about my linked identity",
+                        "about my identity",
+                        "What is my email",
+                        "What profile is this",
+                        "What account is this",
+                        "Who am I"
+                    ]
+                },
+                {
+                    "name": "pullRequestStatus",
+                    "slots": [],
+                    "samples": [
+                        "the status of my pull requests",
+                        "the status of my poll requests",
+                        "about my poll requests",
+                        "about my PRs",
+                        "about my pull requests"
+                    ]
+                }
+            ],
+            "types": []
+        }
+    }
+}
