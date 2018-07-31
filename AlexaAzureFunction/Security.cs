@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs.Host;
@@ -14,8 +11,10 @@ namespace AlexaAzureFunction
 {
     public static class Security
     {
+        // Microsoft Azure Account
         private static readonly string ISSUER = "https://sts.windows.net/72f988bf-86f1-41af-91ab-2d7cd011db47/";
-        //private static readonly string AUDIENCE = "https://microsoft.onmicrosoft.com/06415cfa-7edb-418b-8a85-87d12e9ef390";
+
+        // VSTS REST API Resource Id
         private static readonly string AUDIENCE = "499b84ac-1321-427f-aa17-267ca6975798";
         private static readonly IConfigurationManager<OpenIdConnectConfiguration> _configurationManager;
 
@@ -30,9 +29,9 @@ namespace AlexaAzureFunction
                 documentRetriever);
         }
 
-        public static async Task<ClaimsPrincipal> ValidateTokenAsync(string value, TraceWriter log)
+        public static async Task<ClaimsPrincipal> ValidateTokenAsync(string value, TraceWriter log, CancellationToken cancellationToken)
         {
-            var config = await _configurationManager.GetConfigurationAsync(CancellationToken.None);
+            var config = await _configurationManager.GetConfigurationAsync(cancellationToken);
             var issuer = ISSUER;
             var audience = AUDIENCE;
 

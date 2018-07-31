@@ -9,9 +9,9 @@ using Newtonsoft.Json;
 
 namespace AlexaAzureFunction
 {
-    public static class Function2
+    public static class TestFunction
     {
-        [FunctionName("Function2")]
+        [FunctionName("TestFunction")]
         public static IActionResult Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)]HttpRequest req, TraceWriter log)
         {
             log.Info("C# HTTP trigger function processed a request.");
