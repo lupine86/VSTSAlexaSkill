@@ -12,9 +12,12 @@ TestFunction: http://localhost:7071/api/TestFunction
 After that try hitting the Alexa endpoint using a VSTS PAT token and  your favorite REST client (e.g. Postman) with the following configuration:
 
 POST
+
 Headers:
-Content-Type:application/json
-Authorization:Basic <your PAT token>
+
+  Content-Type:application/json
+  
+  Authorization:Basic `<your PAT token>`
   
   Body: 
 {
