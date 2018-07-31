@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.WebJobs.Host;
 using Newtonsoft.Json;
 
-namespace AlexaAzureFunction
+namespace AlexaVstsSkillAzureFunction
 {
     public static class TestFunction
     {

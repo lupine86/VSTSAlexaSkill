@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 using Alexa.NET.Request;
 using Microsoft.Azure.WebJobs.Host;
 
-namespace AlexaAzureFunction
+namespace AlexaVstsSkillAzureFunction
 {
     /// <summary>
     /// This class holds verification methods needed to authorize requests from an Alexa backend

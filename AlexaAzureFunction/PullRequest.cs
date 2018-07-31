@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace AlexaAzureFunction
+namespace AlexaVstsSkillAzureFunction
 {
     internal class PullRequest
     {

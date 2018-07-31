@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -15,7 +16,7 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
 using Newtonsoft.Json;
 
-namespace AlexaAzureFunction
+namespace AlexaVstsSkillAzureFunction
 {
     public static class AlexaFunc
     {
@@ -98,6 +99,11 @@ namespace AlexaAzureFunction
                 return await VstsApiRequest(log, accessToken, "pullRequestStatus");
             }
 
+            if (intentRequest.Intent.Name.Equals("queueBuilds"))
+            {
+                return await VstsApiRequest(log, accessToken, "queueBuilds");
+            }
+
             return AlexaResponse($"I don't know how to do that yet");
         }
 
@@ -128,12 +134,6 @@ namespace AlexaAzureFunction
             //check to see if we have a succesful response
             if (httpresponse.IsSuccessStatusCode)
             {
-                //set the viewmodel from the content in the response
-                //var responseBody = await httpresponse.Content.ReadAsStringAsync();
-                //dynamic obj1 = JsonConvert.DeserializeObject(responseBody);
-                //countInfo = obj1.count;
-                //log.Info($"Response Body: {countInfo}");
-
                 // get the header that has member id which has a format of <GUID>:<account email>
                 string vssUserData = httpresponse.Headers.FirstOrDefault(kvp => kvp.Key == "X-VSS-UserData").Value.FirstOrDefault() ?? "";
 
@@ -168,10 +168,90 @@ namespace AlexaAzureFunction
 
                 text +=  String.Join(", ", pullRequestRootObject.value.Select(pr => pr.title).ToArray());
                 text += ".";
-                
 
+                var policyEvaluationsList = new List<PolicyEvaluations.Evaluation>();
+
+                var pullRequestsWithExpiredBuilds = pullRequestRootObject.value.Where(pr =>
+                {
+                    string artifactid = "vstfs:///CodeReview/CodeReviewId/" + pr.repository.project.id + "/" + pr.pullRequestId;
+                    var policyEvaluations =  GetPolicyEvaluations(httpClient, pr.repository.project.id, artifactid).Result;
+                    if (!policyEvaluations.Any(pe => pe.configuration.isBlocking && pe.configuration.isEnabled && pe.configuration.type.displayName == "Build" && pe.status == "rejected"))
+                    {
+                        var requeueList = policyEvaluations
+                            .Where(pe => pe.configuration.isBlocking && pe.configuration.isEnabled && pe.configuration.type.displayName == "Build" && pe.context.isExpired)
+                            .Select(pe => new PolicyEvaluations.Evaluation(){ EvaluationId = pe.evaluationId, ProjectId = pr.repository.project.id }).ToList();
+                        if (requeueList.Count > 0)
+                        {
+                            policyEvaluationsList.AddRange(requeueList);
+                            return true;
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                        
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                                  
+                }).ToList();
+
+                if (pullRequestsWithExpiredBuilds.Count == 1)
+                {
+                    text += $" It looks like {pullRequestsWithExpiredBuilds.First().title} has at last one expired build.";
+                }
+                else if (pullRequestsWithExpiredBuilds.Count > 1)
+                {
+                    text += $" You have {pullRequestsWithExpiredBuilds.Count} pull requests with expired builds.";
+                }
+
+                if (intent == "queueBuilds")
+                {
+                    text = "";
+
+                    if (pullRequestsWithExpiredBuilds.Count == 0)
+                    {
+                        text = $"I couldn't find any pull requests with expired builds.";
+                    }
+                    else
+                    {
+                        foreach (var pe in policyEvaluationsList)
+                        {
+                            RequeueBuild(httpClient, pe);
+                        }
+
+                        text = $"I requeued {policyEvaluationsList.Count} build{(policyEvaluationsList.Count > 1 ? "s" : "")}";
+                        if (pullRequestsWithExpiredBuilds.Count == 1)
+                        {
+                            text += " for {pullRequestsWithExpiredBuilds.First().title}.";
+                        }
+                        else if (pullRequestsWithExpiredBuilds.Count > 1)
+                        {
+                            text += $" for {pullRequestsWithExpiredBuilds.Count} pull request{(pullRequestsWithExpiredBuilds.Count > 1 ? "s" : "")}.";
+                        }
+                    }
+                }
                 return AlexaResponse(text);
             }
+        }
+
+        private static void RequeueBuild(HttpClient httpClient, PolicyEvaluations.Evaluation pe)
+        {
+            var method = new HttpMethod("PATCH");
+
+            var request = new HttpRequestMessage(method, $"{pe.ProjectId}/_apis/policy/evaluations/{pe.EvaluationId}?api-version=4.1-preview.1");
+            var httpResponseMessage = httpClient.SendAsync(request);    
+        }
+
+        private static async Task<PolicyEvaluations.Value[]> GetPolicyEvaluations(HttpClient httpClient, string projectId, string artifactId)
+        {
+            var httpResponseMessage = httpClient.GetAsync($"{projectId}/_apis/policy/evaluations?artifactId={artifactId}&api-version=4.1-preview.1").Result;
+            var responseBody = await httpResponseMessage.Content.ReadAsStringAsync();
+            httpResponseMessage.Dispose();
+            PolicyEvaluations.Rootobject policyEvaluations = JsonConvert.DeserializeObject<PolicyEvaluations.Rootobject>(responseBody);
+            return policyEvaluations.value;
         }
 
         private static async Task<PullRequest.Rootobject> GetPullRequests(HttpClient httpClient, string memberId)
