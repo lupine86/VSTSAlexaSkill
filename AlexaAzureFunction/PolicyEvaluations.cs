@@ -118,7 +118,7 @@ namespace AlexaVstsSkillAzureFunction
             public int buildId { get; set; }
             public int buildDefinitionId { get; set; }
             public bool buildIsNotCurrent { get; set; }
-            public DateTime buildStartedUtc { get; set; }
+            public DateTime? buildStartedUtc { get; set; }
             public bool isExpired { get; set; }
             public bool buildAfterMerge { get; set; }
             public int? latestStatusId { get; set; }

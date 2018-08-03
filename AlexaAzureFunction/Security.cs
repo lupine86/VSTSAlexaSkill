@@ -18,6 +18,18 @@ namespace AlexaVstsSkillAzureFunction
         private static readonly string AUDIENCE = "499b84ac-1321-427f-aa17-267ca6975798";
         private static readonly IConfigurationManager<OpenIdConnectConfiguration> _configurationManager;
 
+        public class AccessToken
+        {
+            public AccessToken(string scheme, string tokenValue)
+            {
+                Scheme = scheme;
+                TokenValue = tokenValue;
+            }
+            public string TokenValue { get; }
+            public string Scheme { get; }
+
+        }
+
         static Security()
         {
             HttpDocumentRetriever documentRetriever = new HttpDocumentRetriever();

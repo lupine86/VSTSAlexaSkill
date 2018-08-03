@@ -14,7 +14,9 @@ using Alexa.NET.Response;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
+using Microsoft.WindowsAzure.Storage.Table;
 using Newtonsoft.Json;
+using static AlexaVstsSkillAzureFunction.Security;
 
 namespace AlexaVstsSkillAzureFunction
 {
@@ -41,6 +43,7 @@ namespace AlexaVstsSkillAzureFunction
         [FunctionName("Alexa")]
         public static async Task<HttpResponseMessage> Run(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequestMessage req,
+            [Table("AlexaUser")]CloudTable outputTable,
             TraceWriter log,
             CancellationToken cancellationToken)
         {
@@ -59,20 +62,30 @@ namespace AlexaVstsSkillAzureFunction
 
             SkillRequest skillRequest =  JsonConvert.DeserializeObject<SkillRequest>(reqBody);
 
+            //1. look up user id in cloud table
+            //2. if you can't find an account and memberid then look up account info and get member id
+
+
+
             string identityName = "";
-            string accessToken = "";
+            AccessToken accessToken = null;
             try
             {
-                if (IsDebug)
+                var patToken = AlexaRequestSecurity.GetEncodedPatToken(req.Headers);
+                if (IsDebug && patToken != null)
                 {
                     identityName = "Debug Mode";
-                    accessToken = AlexaRequestSecurity.GetEncodedPatToken(req.Headers);
+                    accessToken = new AccessToken("basic", patToken);
+
                 }
                 else
                 {
+                    // Would this need to be done more than once (if at all) we persisted the identityName?
+                    // We could let VSTS take care of this validation
+                    // Get the VSTS Principle from Oauth token
                     ClaimsPrincipal principal = await AlexaRequestSecurity.GetVSTSPrinciple(skillRequest, log, cancellationToken);
                     identityName = principal.Identity.Name;
-                    accessToken = skillRequest.Session.User.AccessToken;
+                    accessToken = new AccessToken("bearer", skillRequest.Session.User.AccessToken);
                 }
             }
             catch (Exception exception)
@@ -107,7 +120,7 @@ namespace AlexaVstsSkillAzureFunction
             return AlexaResponse($"I don't know how to do that yet");
         }
 
-        private static HttpClient GetHttpClient(string accountUri, string accessToken)
+        private static HttpClient GetHttpClient(string accountUri, AccessToken accessToken)
         {
             var httpClient = new HttpClient()
             {
@@ -116,7 +129,7 @@ namespace AlexaVstsSkillAzureFunction
 
             httpClient.DefaultRequestHeaders.Accept.Clear();
             httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(IsDebug ? "basic" : "bearer", accessToken);
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(accessToken.Scheme, accessToken.TokenValue);
 
             return httpClient;
         }
@@ -144,15 +157,15 @@ namespace AlexaVstsSkillAzureFunction
         }
 
 
-        private static async Task<HttpResponseMessage> VstsApiRequest(TraceWriter log, string accessToken, string intent)
+        private static async Task<HttpResponseMessage> VstsApiRequest(TraceWriter log, AccessToken accessToken, string intent)
         {
             using (var httpClient = GetHttpClient("https://mseng.visualstudio.com", accessToken))
             {
                 var memberId = GetMemberId(httpClient);
                 if (memberId == null)
                 {
-                    return AlexaResponse($"There was a problem communicating with Azure DevOps");
-                }
+                    return AlexaResponse($"There was a problem communicating with the v. s. t. s. API");
+                } 
 
                 PullRequest.Rootobject pullRequestRootObject = await GetPullRequests(httpClient, memberId);
                 int pullRequestCount = pullRequestRootObject.count;
@@ -225,7 +238,7 @@ namespace AlexaVstsSkillAzureFunction
                         text = $"I requeued {policyEvaluationsList.Count} build{(policyEvaluationsList.Count > 1 ? "s" : "")}";
                         if (pullRequestsWithExpiredBuilds.Count == 1)
                         {
-                            text += " for {pullRequestsWithExpiredBuilds.First().title}.";
+                            text += $" for {pullRequestsWithExpiredBuilds.First().title}.";
                         }
                         else if (pullRequestsWithExpiredBuilds.Count > 1)
                         {

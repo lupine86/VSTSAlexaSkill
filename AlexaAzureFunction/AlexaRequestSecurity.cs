@@ -85,14 +85,15 @@ namespace AlexaVstsSkillAzureFunction
 
         internal static string GetEncodedPatToken(HttpRequestHeaders headers)
         {
-            string patToken = headers?.Authorization?.Parameter?.ToString();
-
-            if (String.IsNullOrWhiteSpace(patToken))
+            string scheme = headers?.Authorization?.Scheme ?? String.Empty;
+            if (scheme.Equals("basic", StringComparison.OrdinalIgnoreCase))
             {
-                throw new HttpRequestException("In debug mode you must include a PAT token in the basic authorization header");
+                return headers.Authorization?.Parameter;
             }
-
-            return patToken;
+            else
+            {
+                return null;
+            }
         }
 
         /// <summary>
