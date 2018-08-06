@@ -213,7 +213,7 @@ namespace AlexaVstsSkillAzureFunction
 
                 if (pullRequestsWithExpiredBuilds.Count == 1)
                 {
-                    text += $" It looks like {pullRequestsWithExpiredBuilds.First().title} has at last one expired build.";
+                    text += $" It looks like {pullRequestsWithExpiredBuilds.First().title} has at least one expired build.";
                 }
                 else if (pullRequestsWithExpiredBuilds.Count > 1)
                 {
